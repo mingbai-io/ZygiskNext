@@ -26,7 +26,6 @@ struct Module {
 }
 
 struct Context {
-    native_bridge: String,
     modules: Vec<Module>,
 }
 
@@ -40,7 +39,6 @@ pub fn entry() -> Result<()> {
     let modules = load_modules(arch)?;
 
     let context = Context {
-        native_bridge: utils::get_native_bridge(),
         modules,
     };
     let context = Arc::new(context);
@@ -170,9 +168,6 @@ fn handle_daemon_action(mut stream: UnixStream, context: &Context) -> Result<()>
                 let message = stream.read_string()?;
                 utils::log_raw(level as i32, &tag, &message)?;
             }
-        }
-        DaemonSocketAction::ReadNativeBridge => {
-            stream.write_string(&context.native_bridge)?;
         }
         DaemonSocketAction::GetProcessFlags => {
             let uid = stream.read_u32()? as i32;

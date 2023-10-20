@@ -17,10 +17,8 @@ pub const MAX_LOG_LEVEL: LevelFilter = LevelFilter::Trace;
 #[cfg(not(debug_assertions))]
 pub const MAX_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 
-pub const PROP_NATIVE_BRIDGE: &str = "ro.dalvik.vm.native.bridge";
 pub const PROP_CTL_RESTART: &str = "ctl.restart";
-pub const ZYGISK_LOADER: &str = "libzygisk_loader.so";
-pub const ZYGISK_MAGIC: &str = "/system/zygisk_magic";
+pub const ZYGISK_MAGIC: &str = "/system/etc/zygisk_magic";
 
 pub const PATH_MODULES_DIR: &str = "..";
 pub const PATH_MODULE_PROP: &str = "module.prop";
@@ -39,7 +37,6 @@ pub const STATUS_ROOT_IMPL_MULTIPLE: &str = "❌ Multiple root implementations i
 pub enum DaemonSocketAction {
     PingHeartbeat,
     RequestLogcatFd,
-    ReadNativeBridge,
     GetProcessFlags,
     ReadModules,
     RequestCompanionSocket,

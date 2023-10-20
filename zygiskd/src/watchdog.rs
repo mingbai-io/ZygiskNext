@@ -27,7 +27,7 @@ pub async fn entry() -> Result<()> {
     mount_prop().await?;
     if check_and_set_hint()? == false {
         log::warn!("Requirements not met, exiting");
-        utils::set_property(constants::PROP_NATIVE_BRIDGE, &utils::get_native_bridge())?;
+        // TODO: unmount public.library.txt here
         return Ok(());
     }
     let end = spawn_daemon().await;
@@ -173,7 +173,6 @@ async fn spawn_daemon() -> Result<()> {
             };
 
             log::info!("System server ready, restore native bridge");
-            utils::set_property(constants::PROP_NATIVE_BRIDGE, &utils::get_native_bridge())?;
 
             loop {
                 if binder.ping_binder().is_err() { break; }
@@ -199,7 +198,6 @@ async fn spawn_daemon() -> Result<()> {
         }
 
         log::error!("Restarting zygote...");
-        utils::set_property(constants::PROP_NATIVE_BRIDGE, constants::ZYGISK_LOADER)?;
         utils::set_property(constants::PROP_CTL_RESTART, "zygote")?;
     }
 }

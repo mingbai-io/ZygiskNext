@@ -6,8 +6,11 @@ if [ "$ZYGISK_ENABLED" ]; then
 fi
 
 cd "$MODDIR"
-getprop ro.dalvik.vm.native.bridge > /dev/.native_bridge
-resetprop ro.dalvik.vm.native.bridge libzygisk_loader.so
+
+# TODO: inject in daemon
+cp "/system/etc/public.libraries.txt" "$MODDIR/system/etc/public.libraries.txt"
+echo "libzygisk_loader.so" >> "$MODDIR/system/etc/public.libraries.txt"
+log -p -i -t "zygisksu" "library injected";
 
 if [ "$(which magisk)" ]; then
   for file in ../*; do

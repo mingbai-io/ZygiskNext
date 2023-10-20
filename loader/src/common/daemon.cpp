@@ -66,16 +66,6 @@ namespace zygiskd {
         return fd;
     }
 
-    std::string ReadNativeBridge() {
-        UniqueFd fd = Connect(1);
-        if (fd == -1) {
-            PLOGE("ReadNativeBridge");
-            return "";
-        }
-        socket_utils::write_u8(fd, (uint8_t) SocketAction::ReadNativeBridge);
-        return socket_utils::read_string(fd);
-    }
-
     uint32_t GetProcessFlags(uid_t uid) {
         UniqueFd fd = Connect(1);
         if (fd == -1) {

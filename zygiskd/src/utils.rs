@@ -67,10 +67,6 @@ pub fn set_socket_create_context(context: &str) -> Result<()> {
     }
 }
 
-pub fn get_native_bridge() -> String {
-    std::env::var("NATIVE_BRIDGE").unwrap_or_default()
-}
-
 pub fn log_raw(level: i32, tag: &str, message: &str) -> Result<()> {
     let tag = std::ffi::CString::new(tag)?;
     let message = std::ffi::CString::new(message)?;

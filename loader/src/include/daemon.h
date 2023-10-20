@@ -11,7 +11,7 @@
 # define LP_SELECT(lp32, lp64) lp32
 #endif
 
-constexpr auto kZygiskMagic = "/system/zygisk_magic";
+constexpr auto kZygiskMagic = "/system/etc/zygisk_magic";
 
 class UniqueFd {
     using Fd = int;
@@ -54,7 +54,6 @@ namespace zygiskd {
     enum class SocketAction {
         PingHeartBeat,
         RequestLogcatFd,
-        ReadNativeBridge,
         GetProcessFlags,
         ReadModules,
         RequestCompanionSocket,

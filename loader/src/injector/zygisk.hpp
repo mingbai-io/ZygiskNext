@@ -5,6 +5,7 @@
 #include <vector>
 
 extern void *self_handle;
+extern void *loader_handle;
 
 void hook_functions();
 
