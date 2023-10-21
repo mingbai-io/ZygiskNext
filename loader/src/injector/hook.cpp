@@ -11,6 +11,7 @@
 #include <sys/prctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <wait.h>
 
 #include "dl.h"
 #include "daemon.h"
@@ -170,9 +171,94 @@ jint env_RegisterNatives(
     return old_functions->RegisterNatives(env, clazz, newMethods.get() ?: methods, numMethods);
 }
 
+
+ino_t native_loader_inode = 0;
+dev_t native_loader_dev = 0;
+int write_pipe = -1;
+
+DCL_HOOK_FUNC(std::vector<std::string>, base_split, const std::string& s,
+              const std::string& delimiters) {
+    if (write_pipe != -1) {
+        auto addr = &s;
+        LOGD("hooked string addr %p content %s", &s, s.c_str());
+        if (write(write_pipe, &addr, sizeof(addr)) == -1) {
+            PLOGE("write");
+            exit(1);
+        }
+        exit(0);
+    }
+    exit(1);
+}
+
+void fixUpNativeLoader() {
+    // TODO: fix on Android 7 (?)
+    auto initializeNativeLoader = reinterpret_cast<void(*)()>(dlsym(RTLD_DEFAULT, "InitializeNativeLoader"));
+    auto resetNativeLoader = reinterpret_cast<void(*)()>(dlsym(RTLD_DEFAULT, "ResetNativeLoader"));
+    if (initializeNativeLoader == nullptr || resetNativeLoader == nullptr || native_loader_inode == 0 || native_loader_dev == 0) {
+        LOGE("failed to fix: init=%p reset=%p or dev/inode not found", initializeNativeLoader, resetNativeLoader);
+        return;
+    }
+    int pipes[2];
+    if (pipe(pipes) == -1) {
+        PLOGE("failed to fix: failed to create pipe");
+        return;
+    }
+    write_pipe = pipes[1];
+    LOGD("start fixup");
+    auto pid = fork();
+    if (pid == 0) {
+        LOGD("in child %d", getpid());
+        close(pipes[0]);
+        if (!lsplt::RegisterHook(native_loader_dev, native_loader_inode,
+                            "_ZN7android4base5SplitERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_",
+                            (void *) new_base_split, (void **) old_base_split) || !lsplt::CommitHook()) {
+            LOGE("failed to hook");
+            exit(1);
+        }
+        resetNativeLoader();
+        initializeNativeLoader();
+        LOGE("nothing hooked");
+        exit(1);
+    } else if (pid > 0) {
+        close(write_pipe);
+        std::string* addr = nullptr;
+        if (read(pipes[0], &addr, sizeof(addr)) == -1) {
+            PLOGE("failed to read");
+        }
+        close(pipes[0]);
+        if (addr != nullptr) {
+            LOGD("get string addr %p content %s", addr, addr->c_str());
+            std::string target = ":libzygisk_loader.so";
+            auto pos = addr->find(target);
+            if (pos != std::string::npos) {
+                addr->replace(pos, target.length(), "");
+                LOGD("replaced %s", addr->c_str());
+            } else {
+                LOGE("target not found");
+            }
+        }
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            PLOGE("failed to wait");
+        } else {
+            if (WIFEXITED(status)) {
+                if (WEXITSTATUS(status) == 0) {
+                    LOGD("child exit normally");
+                } else
+                    LOGE("child exit unexpectedly %d", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                LOGE("child received signal %d", WTERMSIG(status));
+            }
+        }
+    } else {
+        PLOGE("failed to fix: failed to fork");
+    }
+}
+
 DCL_HOOK_FUNC(void, androidSetCreateThreadFunc, void* func) {
     LOGD("androidSetCreateThreadFunc\n");
     do {
+        fixUpNativeLoader();
         auto get_created_java_vms = reinterpret_cast<jint (*)(JavaVM **, jsize, jsize *)>(
                 dlsym(RTLD_DEFAULT, "JNI_GetCreatedJavaVMs"));
         if (!get_created_java_vms) {
@@ -249,6 +335,22 @@ DCL_HOOK_FUNC(void, android_log_close) {
         logging::setfd(-1);
     }
     old_android_log_close();
+}
+
+DCL_HOOK_FUNC(bool, read_file_to_string, const std::string &path, std::string *content, bool follow_symlinks) {
+    LOGD("read path %s", path.c_str());
+    auto r = old_read_file_to_string(path, content, follow_symlinks);
+    if (r && content != nullptr && path == "/system/etc/public.libraries.txt") {
+        std::string target = "libzygisk_loader.so\n";
+        auto pos = content->find(target);
+        if (pos == std::string::npos) {
+            LOGE("failed to find pos");
+            return r;
+        }
+        content->replace(pos, pos + target.length(), "");
+        LOGD("replaced string: %s", content->c_str());
+    }
+    return r;
 }
 
 // We cannot directly call `dlclose` to unload ourselves, otherwise when `dlclose` returns,
@@ -748,13 +850,19 @@ void hook_functions() {
         if (map.path.ends_with("libandroid_runtime.so")) {
             android_runtime_inode = map.inode;
             android_runtime_dev = map.dev;
-            break;
+        } else if (map.path.ends_with("libnativeloader.so")) {
+            native_loader_inode = map.inode;
+            native_loader_dev = map.dev;
         }
     }
+    LOGD("native loader dev=%d ino=%lu", native_loader_dev, native_loader_inode);
 
     PLT_HOOK_REGISTER(android_runtime_dev, android_runtime_inode, fork);
     PLT_HOOK_REGISTER(android_runtime_dev, android_runtime_inode, unshare);
     PLT_HOOK_REGISTER(android_runtime_dev, android_runtime_inode, androidSetCreateThreadFunc);
+    PLT_HOOK_REGISTER_SYM(native_loader_dev, native_loader_inode,
+                          "_ZN7android4base16ReadFileToStringERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEPS7_b",
+                          read_file_to_string);
     PLT_HOOK_REGISTER_SYM(android_runtime_dev, android_runtime_inode, "__android_log_close", android_log_close);
     hook_commit();
 
