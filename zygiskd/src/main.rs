@@ -27,7 +27,7 @@ fn start() {
         return;
     } else if args.len() == 2 && args[1] == "root" {
         root_impl::setup();
-        println!("root impl: {:?}", root_impl::get_impl());
+        println!("root 1impl: {:?}", root_impl::get_impl());
         return;
     }
 
