@@ -87,12 +87,12 @@ fi
 
 if [ "$KSU" ]; then
   ui_print "- Checking SELinux patches"
-  if ! check_sepolicy "$TMPDIR/sepolicy.rule"; then
-    ui_print "*********************************************************"
-    ui_print "! Unable to apply SELinux patches!"
-    ui_print "! Your kernel may not support SELinux patch fully"
-    abort    "*********************************************************"
-  fi
+  # if ! check_sepolicy "$TMPDIR/sepolicy.rule"; then
+  #   ui_print "*********************************************************"
+  #   ui_print "! Unable to apply SELinux patches!"
+  #   ui_print "! Your kernel may not support SELinux patch fully"
+  #   abort    "*********************************************************"
+  # fi
 fi
 
 ui_print "- Extracting module files"
