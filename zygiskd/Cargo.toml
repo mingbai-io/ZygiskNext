@@ -23,7 +23,7 @@ proc-maps = "0.3"
 rustix = { version = "0.38", features = [ "fs", "process", "mount", "net", "thread"] }
 tokio = { version = "1.28", features = ["full"] }
 
-fuser = { git = "https://github.com/cberner/fuser", default-features = false }
+fuser = { git = "https://github.com/5ec1cff/fuser", default-features = false }
 ptrace-do = { git = "https://github.com/5ec1cff/ptrace-do" }
 
 [profile.release]
