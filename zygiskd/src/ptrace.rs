@@ -17,7 +17,7 @@ fn find_module_for_pid(pid: Pid, library: &str) -> Result<MapRange> {
     info!("Finding in maps");
     for map in maps.into_iter() {
         if let Some(p) = map.filename() {
-            info!(p.as_str());
+            info!("{}",p.as_str());
             if p.as_str()?.contains(library) {
                 return Ok(map);
             }
