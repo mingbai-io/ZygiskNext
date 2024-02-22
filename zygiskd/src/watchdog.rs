@@ -18,6 +18,7 @@ static PROP_SECTIONS: LateInit<[String; 2]> = LateInit::new();
 pub async fn main() -> Result<()> {
     let result = run().await;
     if result.is_err() {
+        bail!("run() error.");
         set_prop_hint(constants::STATUS_CRASHED)?;
     }
     result
@@ -52,7 +53,7 @@ fn check_permission() -> Result<()> {
     if context != "u:r:su:s0" && context != "u:r:magisk:s0" {
         bail!("SELinux context incorrect: {context}");
     }
-
+    info!("Check permission successfully");
     Ok(())
 }
 
