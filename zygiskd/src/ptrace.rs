@@ -9,16 +9,16 @@ use rustix::process::getpid;
 use crate::{constants, lp_select};
 use anyhow::{bail, Result};
 
-const ANDROID_LIBC: &str = "bionic/libc.so";
-const ANDROID_LIBDL: &str = "bionic/libdl.so";
+const ANDROID_LIBC: &str = "libc.so";
+const ANDROID_LIBDL: &str = "libdl.so";
 
 fn find_module_for_pid(pid: Pid, library: &str) -> Result<MapRange> {
     let maps = get_process_maps(pid)?;
     info!("Finding in maps");
     for map in maps.into_iter() {
         if let Some(p) = map.filename() {
-            info!("{}",p.as_str()?);
             if p.as_str()?.contains(library) {
+                info!("Found: {}",p.as_str()?);
                 return Ok(map);
             }
         }
