@@ -32,14 +32,14 @@ fn find_remote_procedure(
     local_addr: usize,
 ) -> Result<usize> {
     let local_module = find_module_for_pid(getpid().as_raw_nonzero().get(), library)?;
-    debug!(
+    info!(
         "Identifed local range {library} ({:?}) at {:x}",
         local_module.filename(),
         local_module.start()
     );
 
     let remote_module = find_module_for_pid(pid, library)?;
-    debug!(
+    info!(
         "Identifed remote range {library} ({:?}) at {:x}",
         remote_module.filename(),
         remote_module.start()
@@ -93,10 +93,10 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
     info!("attached process {}", pid);
     std::io::stdout().flush()?;
     let frame = tracer.next_frame()?;
-    debug!("Waited for a frame");
+    info!("Waited for a frame");
 
     // Map a buffer in the remote process
-    debug!("remote mmap addr {:x}", mmap_remote);
+    info!("remote mmap addr {:x}", mmap_remote);
     let mmap_params: [usize; 6] = [
         0,
         0x1000,
@@ -116,7 +116,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         &mmap_params,
     )?;
     let buf_addr = regs.return_value();
-    debug!("remote stopped at addr {:x}", regs.program_counter());
+    info!("remote stopped at addr {:x}", regs.program_counter());
     if regs.program_counter() != libc_base {
         let data = std::mem::MaybeUninit::<libc::siginfo_t>::uninit();
         let siginfo = unsafe {
@@ -132,13 +132,13 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         );
     }
     if buf_addr == usize::MAX {
-        debug!("errno remote {:x}", errno_remote);
+        info!("errno remote {:x}", errno_remote);
         let (regs, frame) = frame.invoke_remote(
             errno_remote,
             libc_base,
             &[],
         )?;
-        debug!("errno called");
+        info!("errno called");
         if regs.program_counter() != libc_base {
             bail!("stopped at unexpected addr {:x} when getting errno", regs.program_counter());
         }
@@ -148,7 +148,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         let err = i32::from_le_bytes(buf);
         bail!("remote failed with {}", err);
     }
-    debug!("Buffer addr: {:x}", buf_addr);
+    info!("Buffer addr: {:x}", buf_addr);
 
     // Load zygisk into remote process
     frame.write_memory(buf_addr, zygisk_lib.as_bytes_with_nul())?;
@@ -158,7 +158,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         &[buf_addr, libc::RTLD_NOW as usize],
     )?;
     let handle = regs.return_value();
-    debug!("Load zygisk into remote process: {:x}", handle);
+    info!("Load zygisk into remote process: {:x}", handle);
     if regs.program_counter() != libc_base {
         let data = std::mem::MaybeUninit::<libc::siginfo_t>::uninit();
         let siginfo = unsafe {
@@ -174,7 +174,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         );
     }
     if handle == 0 {
-        debug!("got handle 0");
+        info!("got handle 0");
         let (regs, frame) = frame.invoke_remote(
             dlerror_remote,
             libc_base,
@@ -184,7 +184,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         if err_addr == 0 {
             bail!("dlerror err addr 0");
         }
-        debug!("err addr {:x}", err_addr);
+        info!("err addr {:x}", err_addr);
         let (regs, frame) = frame.invoke_remote(
             strlen_remote,
             libc_base,
@@ -194,7 +194,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         if len == 0 {
             bail!("dlerror len 0");
         }
-        debug!("err len {}", len);
+        info!("err len {}", len);
         let mut buf = vec![0u8; len];
         frame.read_memory_mut(err_addr, buf.as_mut_slice())?;
         bail!("err {:?}", buf);
@@ -208,7 +208,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         &[handle, buf_addr],
     )?;
     let entry = regs.return_value();
-    debug!("Call zygisk entry: {:x}", entry);
+    info!("Call zygisk entry: {:x}", entry);
     let (_, frame) = frame.invoke_remote(
         entry,
         libc_base,
@@ -221,7 +221,7 @@ fn ptrace_zygote(pid: u32) -> Result<()> {
         libc_base,
         &[buf_addr],
     )?;
-    debug!("Cleaned up");
+    info!("Cleaned up");
     Ok(())
 }
 
