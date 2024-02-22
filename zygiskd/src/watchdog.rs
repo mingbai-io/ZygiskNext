@@ -58,14 +58,10 @@ fn check_permission() -> Result<()> {
 }
 
 async fn mount_prop() -> Result<()> {
-    info!("0");
     let module_prop_file = fs::File::open(constants::PATH_MODULE_PROP)?;
-    info!("1");
     let mut section = 0;
     let mut sections: [String; 2] = [String::new(), String::new()];
-    info!("2");
     let lines = BufReader::new(module_prop_file).lines();
-    info!("3");
     for line in lines {
         let line = line?;
         if line.starts_with("description=") {
@@ -78,9 +74,7 @@ async fn mount_prop() -> Result<()> {
             sections[section].push('\n');
         }
     }
-    info!("4");
     PROP_SECTIONS.init(sections);
-    info!("5");
 
     info!("Mount {} -> {}", constants::PATH_PROP_OVERLAY, constants::PATH_MODULE_PROP);
     fs::File::create(constants::PATH_PROP_OVERLAY)?;
